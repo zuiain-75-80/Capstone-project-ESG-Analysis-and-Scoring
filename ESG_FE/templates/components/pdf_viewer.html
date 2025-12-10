@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="/static/css/pdf_viewer.css">
+</head>
+<body>
+    <div id="status">Đang tải PDF...</div>
+    <div id="zoom-controls">
+        <button class="zoom-btn" onclick="zoomOut()">🔍➖</button>
+        <span id="zoom-level">120%</span>
+        <button class="zoom-btn" onclick="zoomIn()">🔍➕</button>
+        <button class="zoom-btn" onclick="resetZoom()" style="background: #28a745;">↻ Reset</button>
+    </div>
+    <div id="pdf-container" style="width: 100%; height: 700px; overflow: auto; border: 1px solid #ddd;"></div>
+    
+    <script src="/static/js/pdf_viewer.js"></script>
+</body>
+</html> 

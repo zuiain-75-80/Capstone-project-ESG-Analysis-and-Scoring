@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Sentence Labeler</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>CSV Sentence Labeler</h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- File Upload Section -->
+        <div class="card" id="upload-card">
+            <div class="card-header">Upload CSV File</div>
+            <div class="card-body">
+                <div class="upload-section" id="drop-area">
+                    <p>Drag and drop your CSV file here or click to browse</p>
+                    <input type="file" id="file-input" class="file-input" accept=".csv">
+                    <button class="btn btn-primary" id="browse-button">Browse Files</button>
+                    <p class="small">File must contain a "Sentences" column and optional E, S, G, I columns</p>
+                </div>
+                <div id="upload-alert" class="alert" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Labeling Interface (Hidden until file is uploaded) -->
+        <div class="labeling-interface" id="labeling-interface">
+            <div class="card">
+                <div class="card-header">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="progress-text">Sentence 0 of 0</span>
+                            <span id="file-name"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="labeling-container">
+                        <!-- Sentence Display and Navigation -->
+                        <div class="sentence-section">
+                            <label for="sentence-textarea">Sentence Text (editable):</label>
+                            <textarea id="sentence-textarea" class="sentence-display"></textarea>
+                            <div class="navigation-controls">
+                                <button class="btn btn-secondary" id="prev-button" disabled>Previous</button>
+                                <input type="number" id="jump-input" class="jump-input" placeholder="Go to #" min="1" style="width: 80px; margin: 0 5px; text-align: center;">
+                                <button class="btn btn-primary" id="jump-button">Go</button>
+                                <button class="btn btn-secondary" id="next-button" disabled>Next</button>
+                            </div>
+                        </div>
+
+                        <!-- Labeling Controls -->
+                        <div class="controls-section">
+                            <!-- Category Counters -->
+                            <div class="category-counters">
+                                <h3>Category Counts</h3>
+                                <div class="counter-item">
+                                    <span class="counter-label">Environmental (E):</span>
+                                    <span class="counter-value" id="count-e">0</span>
+                                </div>
+                                <div class="counter-item">
+                                    <span class="counter-label">Social (S):</span>
+                                    <span class="counter-value" id="count-s">0</span>
+                                </div>
+                                <div class="counter-item">
+                                    <span class="counter-label">Governance (G):</span>
+                                    <span class="counter-value" id="count-g">0</span>
+                                </div>
+                                <div class="counter-item">
+                                    <span class="counter-label">Irrelevant (I):</span>
+                                    <span class="counter-value" id="count-i">0</span>
+                                </div>
+                            </div>
+
+                            <!-- Checkboxes -->
+                            <div class="checkbox-group">
+                                <h3>Label Categories</h3>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="checkbox-e">
+                                    <label for="checkbox-e">Environmental (E)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="checkbox-s">
+                                    <label for="checkbox-s">Social (S)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="checkbox-g">
+                                    <label for="checkbox-g">Governance (G)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="checkbox-i">
+                                    <label for="checkbox-i">Irrelevant (I)</label>
+                                </div>
+                            </div>
+
+                            <!-- Export Button -->
+                            <button class="btn btn-success btn-block" id="export-button">Export Labeled CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p class="loading-text" id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('file-input');
+            const browseButton = document.getElementById('browse-button');
+            const uploadAlert = document.getElementById('upload-alert');
+            const labelingInterface = document.getElementById('labeling-interface');
+            const uploadCard = document.getElementById('upload-card');
+            const sentenceTextarea = document.getElementById('sentence-textarea');
+            const prevButton = document.getElementById('prev-button');
+            const nextButton = document.getElementById('next-button');
+            const jumpInput = document.getElementById('jump-input'); // Added
+            const jumpButton = document.getElementById('jump-button'); // Added
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            const fileName = document.getElementById('file-name');
+            const exportButton = document.getElementById('export-button');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingText = document.getElementById('loading-text');
+            
+            // Checkboxes
+            const checkboxE = document.getElementById('checkbox-e');
+            const checkboxS = document.getElementById('checkbox-s');
+            const checkboxG = document.getElementById('checkbox-g');
+            const checkboxI = document.getElementById('checkbox-i');
+            
+            // Counters
+            const countE = document.getElementById('count-e');
+            const countS = document.getElementById('count-s');
+            const countG = document.getElementById('count-g');
+            const countI = document.getElementById('count-i');
+            
+            // State variables
+            let currentIndex = 0;
+            let totalSentences = 0;
+            let currentSentence = '';
+            let currentLabels = { E: 0, S: 0, G: 0, I: 0 };
+            let isEditing = false;
+            
+            // Event Listeners for File Upload
+            browseButton.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    uploadFile(e.target.files[0]);
+                }
+            });
+            
+            // Drag and drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => {
+                    dropArea.classList.add('drag-over');
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => {
+                    dropArea.classList.remove('drag-over');
+                }, false);
+            });
+            
+            dropArea.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    uploadFile(files[0]);
+                }
+            }, false);
+            
+            // Navigation and Labeling Events
+            prevButton.addEventListener('click', () => {
+                if (currentIndex > 0) {
+                    saveSentence(() => {
+                        currentIndex--;
+                        loadSentence(currentIndex);
+                    });
+                }
+            });
+            
+            nextButton.addEventListener('click', () => {
+                if (currentIndex < totalSentences - 1) {
+                    saveSentence(() => {
+                        currentIndex++;
+                        loadSentence(currentIndex);
+                    });
+                }
+            });
+
+            // Jump Button Event Listener (Added)
+            jumpButton.addEventListener('click', () => {
+                const targetSentenceNum = parseInt(jumpInput.value, 10);
+                if (isNaN(targetSentenceNum) || targetSentenceNum < 1 || targetSentenceNum > totalSentences) {
+                    showAlert(`Please enter a number between 1 and ${totalSentences}`, 'warning');
+                    jumpInput.focus();
+                    return;
+                }
+                
+                const targetIndex = targetSentenceNum - 1; // Convert to 0-based index
+                if (targetIndex !== currentIndex) {
+                    saveSentence(() => {
+                        currentIndex = targetIndex;
+                        loadSentence(currentIndex);
+                        jumpInput.value = ''; // Clear input after successful jump
+                    });
+                } else {
+                    jumpInput.value = ''; // Clear input if already on the target sentence
+                }
+            });
+
+            // Allow pressing Enter in jump input to trigger jump (Added)
+            jumpInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent form submission if it were in a form
+                    jumpButton.click(); // Trigger the Go button click
+                }
+            });
+            
+            // Checkbox change events
+            [checkboxE, checkboxS, checkboxG, checkboxI].forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    currentLabels = {
+                        E: checkboxE.checked ? 1 : 0,
+                        S: checkboxS.checked ? 1 : 0,
+                        G: checkboxG.checked ? 1 : 0,
+                        I: checkboxI.checked ? 1 : 0
+                    };
+                    
+                    // Auto-save when checkboxes change
+                    saveSentence(); // No callback needed here, just save
+                });
+            });
+            
+            // Text editing events
+            sentenceTextarea.addEventListener('input', () => {
+                currentSentence = sentenceTextarea.value;
+                isEditing = true;
+            });
+            
+            sentenceTextarea.addEventListener('blur', () => {
+                if (isEditing) {
+                    saveSentence(); // Save on blur if editing occurred
+                    isEditing = false;
+                }
+            });
+            
+            // Export button
+            exportButton.addEventListener('click', exportCSV);
+            
+            // Functions
+            function uploadFile(file) {
+                if (!file.name.endsWith('.csv')) {
+                    showAlert('Please upload a CSV file', 'danger');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                showLoading('Uploading file...');
+                
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    
+                    if (data.success) {
+                        // Show success message
+                        showAlert('File uploaded successfully!', 'success');
+                        
+                        // Update UI
+                        uploadCard.style.display = 'none';
+                        labelingInterface.style.display = 'block';
+                        fileName.textContent = file.name;
+                        
+                        // Update counters
+                        updateCounters(data.counts);
+                        
+                        // Set total sentences and update jump input max
+                        totalSentences = data.rows;
+                        jumpInput.max = totalSentences; // Set max attribute for jump input
+                        
+                        // Load first sentence
+                        currentIndex = 0;
+                        loadSentence(currentIndex);
+                    } else {
+                        showAlert(data.error || 'Error uploading file', 'danger');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showAlert('Error uploading file: ' + error.message, 'danger');
+                });
+            }
+            
+            function loadSentence(index) {
+                showLoading('Loading sentence...');
+                
+                fetch(`/get_sentence?index=${index}`)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    
+                    if (data.success) {
+                        // Update text area
+                        sentenceTextarea.value = data.sentence;
+                        currentSentence = data.sentence;
+                        isEditing = false; // Reset editing flag when loading new sentence
+                        
+                        // Update checkboxes
+                        currentLabels = data.labels;
+                        checkboxE.checked = data.labels.E === 1;
+                        checkboxS.checked = data.labels.S === 1;
+                        checkboxG.checked = data.labels.G === 1;
+                        checkboxI.checked = data.labels.I === 1;
+                        
+                        // Update progress
+                        updateProgress(data.current, data.total);
+                        
+                        // Update navigation buttons
+                        prevButton.disabled = index <= 0;
+                        nextButton.disabled = index >= data.total - 1;
+                        jumpButton.disabled = data.total <= 1; // Disable jump if only one sentence
+                        jumpInput.disabled = data.total <= 1;
+                        jumpInput.max = data.total; // Ensure max is updated
+
+                    } else {
+                        showAlert(data.error || 'Error loading sentence', 'danger');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showAlert('Error loading sentence: ' + error.message, 'danger');
+                });
+            }
+            
+            function saveSentence(callback) {
+                // Only save if there are changes to text or labels (compared to loaded state)
+                // Note: This basic check might need refinement depending on exact needs.
+                // For simplicity, we save whenever this is called before navigation/jump.
+
+                // Check if the text content has actually changed
+                const textChanged = sentenceTextarea.value !== currentSentence;
+                // Check if labels have changed (more complex, might need to store initial labels)
+                // For now, assume if isEditing or a checkbox changed, save is needed.
+
+                const data = {
+                    index: currentIndex,
+                    sentence: sentenceTextarea.value, // Use current textarea value for saving
+                    labels: {
+                        E: checkboxE.checked ? 1 : 0,
+                        S: checkboxS.checked ? 1 : 0,
+                        G: checkboxG.checked ? 1 : 0,
+                        I: checkboxI.checked ? 1 : 0
+                    }
+                };
+                
+                // Update state variables immediately for consistency
+                currentSentence = data.sentence;
+                currentLabels = data.labels;
+                isEditing = false; // Reset editing flag after initiating save
+
+                showLoading('Saving changes...');
+                
+                fetch('/update_sentence', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    
+                    if (data.success) {
+                        // Update counters
+                        updateCounters(data.counts);
+                        
+                        // Call callback if provided (for navigation/jump)
+                        if (typeof callback === 'function') {
+                            callback();
+                        }
+                    } else {
+                        showAlert(data.error || 'Error saving sentence', 'danger');
+                        // Optionally revert changes or re-enable editing flag if save fails
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showAlert('Error saving sentence: ' + error.message, 'danger');
+                    // Optionally revert changes or re-enable editing flag if save fails
+                });
+            }
+
+            function updateProgress(current, total) {
+                progressText.textContent = `Sentence ${current} of ${total}`;
+                const percentage = total > 0 ? (current / total) * 100 : 0;
+                progressFill.style.width = `${percentage}%`;
+            }
+
+            function updateCounters(counts) {
+                countE.textContent = counts.E || 0;
+                countS.textContent = counts.S || 0;
+                countG.textContent = counts.G || 0;
+                countI.textContent = counts.I || 0;
+            }
+
+            function showAlert(message, type = 'info') {
+                uploadAlert.textContent = message;
+                uploadAlert.className = `alert alert-${type}`;
+                uploadAlert.style.display = 'block';
+                // Optional: Auto-hide after a few seconds
+                // setTimeout(() => {
+                //     uploadAlert.style.display = 'none';
+                // }, 5000);
+            }
+
+            function showLoading(message = 'Processing...') {
+                loadingText.textContent = message;
+                loadingOverlay.style.display = 'flex';
+            }
+
+            function hideLoading() {
+                loadingOverlay.style.display = 'none';
+            }
+
+            function exportCSV() {
+                showLoading('Exporting CSV...');
+                // Trigger download by navigating to the export endpoint
+                window.location.href = '/export';
+                // Hide loading after a short delay, assuming download starts quickly
+                setTimeout(hideLoading, 1500);
+            }
+        });
+    </script>
+</body>
+</html>
+

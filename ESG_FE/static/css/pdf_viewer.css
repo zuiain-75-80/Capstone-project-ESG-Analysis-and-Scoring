@@ -1,0 +1,113 @@
+/* PDF Viewer Styles */
+.pdf-page { 
+    margin: 10px 0; 
+    border: 1px solid #ccc; 
+}
+
+.textLayer { 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    right: 0; 
+    bottom: 0; 
+    overflow: hidden; 
+    opacity: 1; 
+    line-height: 1.0; 
+    z-index: 2; 
+    font-size: 0.9em; 
+}
+
+.textLayer > span { 
+    color: transparent; 
+    position: absolute; 
+    white-space: pre; 
+    cursor: text; 
+    transform-origin: 0% 0%; 
+    user-select: text; 
+    -webkit-user-select: text; 
+    -moz-user-select: text; 
+}
+
+/* FORCE HIGHLIGHT COLOR - VÀNG ĐẬM */
+* {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+*::selection {
+    background: #FFFF00 !important;
+    color: #000000 !important;
+}
+
+*::-moz-selection {
+    background: #FFFF00 !important;
+    color: #000000 !important;
+}
+
+.textLayer *::selection {
+    background: #FFFF00 !important;
+    color: #000000 !important;
+}
+
+.textLayer *::-moz-selection {
+    background: #FFFF00 !important;
+    color: #000000 !important;
+}
+
+.textLayer > span::selection { 
+    background: #FFFF00 !important; 
+    color: #000000 !important;
+}
+
+.textLayer > span::-moz-selection { 
+    background: #FFFF00 !important; 
+    color: #000000 !important;
+}
+
+#status { 
+    padding: 8px; 
+    background: #f0f0f0; 
+    border-radius: 4px; 
+    margin: 5px 0; 
+    font-weight: bold; 
+}
+
+#zoom-controls { 
+    padding: 10px; 
+    background: #f8f9fa; 
+    border-radius: 5px; 
+    margin: 5px 0; 
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+
+.zoom-btn { 
+    background: #007bff; 
+    color: white; 
+    border: none; 
+    padding: 8px 15px; 
+    margin: 0 5px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.zoom-btn:hover { 
+    background: #0056b3; 
+}
+
+.zoom-btn:disabled { 
+    background: #6c757d; 
+    cursor: not-allowed; 
+}
+
+#zoom-level { 
+    display: inline-block; 
+    min-width: 60px; 
+    margin: 0 10px; 
+    font-weight: bold; 
+    color: #495057;
+} 

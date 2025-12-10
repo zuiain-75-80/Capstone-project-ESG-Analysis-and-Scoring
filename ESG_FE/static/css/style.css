@@ -1,0 +1,37 @@
+/* Panel bên phải cuộn theo trang thay vì sticky */
+.stColumn > div:nth-child(2) {
+    position: relative;
+    padding-right: 10px;
+}
+
+/* Target specific Streamlit vertical block */
+.stVerticalBlock.st-emotion-cache-vlxhtx.e1lln2w83 {
+    position: relative !important;
+    top: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+
+/* Custom scrollbar cho toàn trang */
+body::-webkit-scrollbar {
+    width: 12px;
+}
+
+body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Đảm bảo panel không bị sticky */
+.stColumn {
+    position: relative !important;
+}
